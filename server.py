@@ -1,6 +1,7 @@
 from mcp.server.fastmcp import FastMCP
 from auth.tools import register_auth_tools
 from mail import register_mail_tools
+from sharepoint import register_sharepoint_tools
 
 # Tạo FastMCP instance — tên này hiển thị trong Claude Desktop
 mcp = FastMCP("outlook-email")
@@ -14,6 +15,7 @@ mcp = FastMCP("outlook-email")
 #      register_calendar_tools(mcp)
 register_auth_tools(mcp)
 register_mail_tools(mcp)
+register_sharepoint_tools(mcp)
 
 if __name__ == "__main__":
     mcp.run()

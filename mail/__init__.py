@@ -11,6 +11,7 @@ from mail.drafts import (
 )
 from mail.send_email import send_email_impl
 from mail.mark_as_read import mark_as_read_impl
+from mail.attachments import list_attachments_impl, read_attachment_impl
 
 
 def register_mail_tools(mcp: FastMCP) -> None:
@@ -166,3 +167,25 @@ def register_mail_tools(mcp: FastMCP) -> None:
             is_read: True để đánh dấu đã đọc, False để đánh dấu chưa đọc.
         """
         return await mark_as_read_impl(message_id, is_read)
+
+    @mcp.tool()
+    async def list_attachments(message_id: str) -> str:
+        """Liệt kê tất cả file đính kèm của một email.
+
+        Args:
+            message_id: ID của email (lấy từ list_emails hoặc search_emails).
+        """
+        return await list_attachments_impl(message_id)
+
+    @mcp.tool()
+    async def read_attachment(message_id: str, attachment_id: str) -> str:
+        """Đọc và trả về nội dung file đính kèm trong email.
+
+        Hỗ trợ: txt, csv, json, html, xml, md (text), xlsx (Excel),
+        pdf (PDF), docx (Word). Ảnh và định dạng khác trả về thông báo.
+
+        Args:
+            message_id: ID của email chứa file đính kèm.
+            attachment_id: ID của file đính kèm (lấy từ list_attachments).
+        """
+        return await read_attachment_impl(message_id, attachment_id)

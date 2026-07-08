@@ -15,6 +15,8 @@ SCOPES = [
     "Mail.ReadWrite",
     "Mail.Send",
     "User.Read",
+    "Sites.Read.All",
+    "Files.Read.All",
 ]
 
 EMAIL_SELECT = (
@@ -29,3 +31,6 @@ EMAIL_DETAIL_SELECT = (
 
 DEFAULT_PAGE_SIZE = 25
 MAX_RESULT_COUNT = 50
+
+# Dùng khi list attachments — bỏ contentBytes để tránh download toàn bộ file
+ATTACHMENT_LIST_SELECT = "id,name,contentType,size,isInline"

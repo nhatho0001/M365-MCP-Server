@@ -64,6 +64,41 @@ async def graph_paginate(
     return items[:max_items]
 
 
+async def graph_download(path: str, token: str) -> bytes:
+    """Download nội dung nhị phân (file) từ Graph API."""
+    url = f"{GRAPH_BASE}/{path.lstrip('/')}"
+    headers = {"Authorization": f"Bearer {token}"}
+    async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
+        response = await client.get(url, headers=headers)
+
+    if response.status_code == 401:
+        raise PermissionError(
+            "Token hết hạn hoặc không hợp lệ. Hãy gọi 'auth_login' để đăng nhập lại."
+        )
+    if response.status_code == 403:
+        raise PermissionError(
+            "Graph API từ chối quyền truy cập (403). "
+            "Kiểm tra lại API permissions trong Azure Portal."
+        )
+    if response.status_code == 404:
+        raise ValueError(f"Không tìm thấy file: {path}")
+
+    response.raise_for_status()
+    return response.content
+
+
+async def graph_download_url(url: str) -> bytes:
+    """Download file từ pre-authenticated URL (không cần Authorization header).
+
+    Dùng cho @microsoft.graph.downloadUrl trả về từ driveItem.
+    """
+    async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
+        response = await client.get(url)
+
+    response.raise_for_status()
+    return response.content
+
+
 async def graph_get(path: str, token: str, params: dict | None = None) -> dict:
     return await graph_request("GET", path, token, params=params)
 
