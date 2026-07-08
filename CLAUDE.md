@@ -75,7 +75,7 @@ Không cần thay đổi file nào khác.
 | `auth/` | MSAL Device Code Flow; tools: `auth_login`, `auth_confirm`, `auth_status`, `auth_logout` |
 | `graph/` | HTTP wrappers cho Graph API: `graph_get/post/patch/delete/download`, `graph_paginate` |
 | `mail/` | Email CRUD + đọc đính kèm (xem bên dưới) |
-| `sharepoint/` | Đọc file Excel từ SharePoint Online |
+| `sharepoint/` | Đọc file Excel từ SharePoint Online (xem bên dưới) |
 | `utils/` | HTML → text (`html_sanitizer`), format email display (`formatting`) |
 
 ### mail/ — các tools
@@ -93,6 +93,16 @@ Không cần thay đổi file nào khác.
 
 `read_attachment` hỗ trợ: text thuần (UTF-8), Excel (`openpyxl`), PDF (`pypdf`), Word (`python-docx`). Ảnh và định dạng khác trả thông báo không hỗ trợ.
 
+### sharepoint/ — tools
+
+| Tool | File impl | Chức năng |
+|------|-----------|-----------|
+| `read_sharepoint_excel` | `read_excel.py` | Đọc nội dung file Excel (.xlsx/.xlsm/.xlam) từ SharePoint Online |
+
+`read_excel_impl` xử lý 2 dạng URL khác nhau:
+- **Sharing link** (`/:x:/s/...`) — encode thành `shareId` (`u!<base64url>`) và gọi `GET /shares/{shareId}/driveItem`, ưu tiên download qua `@microsoft.graph.downloadUrl` (pre-authenticated, dùng `graph_download_url`), fallback sang `graph_download` với `driveId`/`itemId`.
+- **Direct URL** (`https://tenant.sharepoint.com/sites/.../file.xlsx`) — parse hostname/site path/file path, resolve site ID qua `sites/{hostname}:{site_path}`, rồi lấy driveItem và download qua `graph_download`.
+
 ### mail/folder_utils.py
 
 `resolve_folder_endpoint(folder, token)` chuyển tên folder thành Graph API path. Các tên well-known: `inbox`, `drafts`, `sent`, `deleted`, `junk`, `archive`, `outbox`. Tên tùy chỉnh được tra cứu qua `$filter=displayName eq '...'`.
@@ -108,10 +118,11 @@ Scopes hiện tại trong `config.py`: `Mail.Read`, `Mail.ReadWrite`, `Mail.Send
 ### graph/client.py — các hàm quan trọng
 
 - `graph_get/post/patch/delete` — JSON requests, tự xử lý lỗi 401/403/404/429
-- `graph_download(path, token) -> bytes` — download file nhị phân (binary stream, timeout 60s)
+- `graph_download(path, token) -> bytes` — download file nhị phân qua Graph API (binary stream, timeout 60s, cần Authorization header)
+- `graph_download_url(url) -> bytes` — download trực tiếp từ pre-authenticated URL (vd. `@microsoft.graph.downloadUrl`), không cần token
 - `graph_paginate(path, token, params, max_items)` — follow `@odata.nextLink` tự động
 
-Dùng `graph_get` khi API trả JSON (kể cả khi JSON chứa `contentBytes` base64 như attachment). Dùng `graph_download` khi endpoint trả về binary stream trực tiếp (như SharePoint file `/content`).
+Dùng `graph_get` khi API trả JSON (kể cả khi JSON chứa `contentBytes` base64 như attachment). Dùng `graph_download`/`graph_download_url` khi endpoint trả về binary stream trực tiếp (như SharePoint file `/content`).
 
 ### config.py — các constants
 
