@@ -29,7 +29,7 @@ MCP Server cho Claude Desktop để đọc và quản lý email Microsoft 365 / 
 
 ## Yêu cầu
 
-- Python 3.11 trở lên
+- Python 3.11 trở lên (nếu dùng `uv` ở Bước 3 - Cách 1, không cần cài Python trước — `uv` tự tải)
 - [Claude Desktop](https://claude.ai/download)
 - Tài khoản Microsoft 365 hoặc Outlook.com
 - Quyền truy cập [Azure Portal](https://portal.azure.com) (để đăng ký app)
@@ -98,11 +98,29 @@ cd "C:\Projects\mcp-server"
 
 #### Cách 1: Dùng `uv` (Khuyên dùng — tự quản lý virtual env)
 
-```bash
-# Cài uv nếu chưa có
-pip install uv
+**Cài `uv` (nếu máy chưa có):**
 
-# Cài dependencies
+Windows (PowerShell):
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+macOS / Linux:
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Hoặc nếu máy đã có sẵn Python + pip:
+```bash
+pip install uv
+```
+
+> Sau khi cài xong, **đóng và mở lại terminal** để PATH được cập nhật, rồi kiểm tra bằng `uv --version`.
+> `uv` tự quản lý phiên bản Python — không cần cài Python 3.11 riêng, `uv sync` bên dưới sẽ tự tải nếu máy chưa có.
+
+**Cài dependencies:**
+
+```bash
 uv sync
 ```
 
