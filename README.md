@@ -20,6 +20,10 @@ MCP Server cho Claude Desktop để đọc và quản lý email Microsoft 365 / 
 | `send_draft` | Gửi email nháp đã tạo |
 | `send_email` | Soạn và gửi email ngay |
 | `mark_email_as_read` | Đánh dấu email đã đọc / chưa đọc |
+| `list_attachments` | Liệt kê file đính kèm của một email |
+| `read_attachment` | Đọc nội dung file đính kèm (text/xlsx/pdf/docx/ảnh) |
+| `read_sharepoint_excel` | Đọc nội dung file Excel từ SharePoint Online |
+| `filter_sharepoint_excel` | Đọc file Excel từ SharePoint, chỉ lấy các dòng khớp filter |
 
 ---
 
@@ -68,8 +72,12 @@ C:\Projects\mcp-server\
    - `Mail.ReadWrite`
    - `Mail.Send`
    - `User.Read`
+   - `Sites.Read.All` — cần cho `read_sharepoint_excel` / `filter_sharepoint_excel`
+   - `Files.Read.All` — cần cho `read_sharepoint_excel` / `filter_sharepoint_excel`
    - `offline_access`
 8. Nhấn **"Grant admin consent for [tên tổ chức]"** nếu bạn là admin *(tùy chọn — xem phần Troubleshooting nếu không có quyền này)*
+
+> Nếu app đã tạo trước đó và chỉ có 4 quyền đầu, quay lại **"API permissions"** để bổ sung `Sites.Read.All`/`Files.Read.All`, nếu không 2 tool SharePoint sẽ báo lỗi 403.
 
 #### Bật Device Code Flow
 
@@ -101,7 +109,7 @@ uv sync
 #### Cách 2: Dùng `pip` thông thường
 
 ```bash
-pip install "mcp[cli]" msal httpx python-dotenv html2text
+pip install "mcp[cli]" msal httpx python-dotenv html2text openpyxl pypdf python-docx
 ```
 
 ---
@@ -284,7 +292,13 @@ mcp-server/
 │   ├── drafts.py       # create/list/update/delete/send draft
 │   ├── send_email.py
 │   ├── mark_as_read.py
+│   ├── attachments.py  # list_attachments, read_attachment
 │   ├── folder_utils.py
+│   └── __init__.py
+├── sharepoint/         # Đọc file Excel từ SharePoint Online
+│   ├── read_excel.py
+│   ├── filter_excel.py
+│   ├── excel_common.py # helper resolve URL / download / parse JSON dùng chung
 │   └── __init__.py
 └── utils/              # Tiện ích dùng chung
     ├── html_sanitizer.py
@@ -297,12 +311,14 @@ mcp-server/
 
 Để thêm tính năng mới (ví dụ Calendar):
 
-1. Tạo thư mục `calendar/` với các file tương tự `mail/`
-2. Viết `calendar/__init__.py` với hàm `register_calendar_tools(mcp)`
+1. Tạo thư mục `calendar_tools/` với các file tương tự `mail/`
+   (không đặt tên `calendar/` — trùng tên module chuẩn của Python, sẽ gây lỗi import)
+2. Viết `calendar_tools/__init__.py` với hàm `register_calendar_tools(mcp)`
 3. Thêm vào `server.py`:
    ```python
-   from calendar import register_calendar_tools
+   from calendar_tools import register_calendar_tools
    register_calendar_tools(mcp)
    ```
+4. Thêm package vào `pyproject.toml` → `[tool.hatch.build.targets.wheel] packages`
 
-Không cần thay đổi bất kỳ file nào khác.
+Không cần thay đổi file nào khác.
