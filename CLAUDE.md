@@ -43,8 +43,9 @@ Claude Desktop → FastMCP (server.py)
 
 ### Cách thêm nhóm tool mới (ví dụ Calendar)
 
-1. Tạo thư mục `calendar/` với file `__init__.py` chứa hàm `register_calendar_tools(mcp: FastMCP)`
-2. Logic impl nằm trong các file riêng, ví dụ `calendar/list_events.py`
+1. Tạo thư mục `calendar_tools/` với file `__init__.py` chứa hàm `register_calendar_tools(mcp: FastMCP)`
+   (không đặt tên `calendar/` — trùng tên module chuẩn của Python, sẽ gây lỗi import)
+2. Logic impl nằm trong các file riêng, ví dụ `calendar_tools/list_events.py`
 3. Thêm 2 dòng vào `server.py`:
    ```python
    from calendar_tools import register_calendar_tools
@@ -89,19 +90,28 @@ Không cần thay đổi file nào khác.
 | `send_email` | `send_email.py` | Soạn và gửi ngay |
 | `mark_email_as_read` | `mark_as_read.py` | Đánh dấu đọc/chưa đọc |
 | `list_attachments` | `attachments.py` | Liệt kê file đính kèm (tên, MIME, kích thước, ID) |
-| `read_attachment` | `attachments.py` | Đọc nội dung đính kèm trực tiếp (text/xlsx/pdf/docx) |
+| `read_attachment` | `attachments.py` | Đọc nội dung đính kèm trực tiếp (text/xlsx/pdf/docx/ảnh) |
 
-`read_attachment` hỗ trợ: text thuần (UTF-8), Excel (`openpyxl`), PDF (`pypdf`), Word (`python-docx`). Ảnh và định dạng khác trả thông báo không hỗ trợ.
+`search_emails_impl` có hai nhánh loại trừ lẫn nhau: nếu `query` khác rỗng, tool dùng `$search` (KQL) và **bỏ qua mọi filter khác** (`from_address`, `subject`, `unread_only`, `has_attachments`, `from_date`, `to_date`); nếu `query` rỗng, tool build `$filter` từ các điều kiện đó (kết hợp bằng `and`). Khi thêm filter mới, phải thêm vào nhánh `$filter`, không phải nhánh `$search`.
+
+`read_attachment` hỗ trợ: text thuần (UTF-8), Excel (`openpyxl`), PDF (`pypdf`), Word (`python-docx`), ảnh PNG/JPEG/GIF/WEBP (trả về qua `mcp.server.fastmcp.Image` — Claude xem trực tiếp, không phải OCR). Định dạng ảnh khác (bmp, tiff, svg, ...) và định dạng chưa hỗ trợ khác trả thông báo không hỗ trợ. Excel đính kèm trả về **markdown table** — khác với `read_sharepoint_excel` (trả JSON, xem mục `sharepoint/` bên dưới).
 
 ### sharepoint/ — tools
 
 | Tool | File impl | Chức năng |
 |------|-----------|-----------|
 | `read_sharepoint_excel` | `read_excel.py` | Đọc nội dung file Excel (.xlsx/.xlsm/.xlam) từ SharePoint Online |
+| `filter_sharepoint_excel` | `filter_excel.py` | Đọc file Excel từ SharePoint, chỉ trả về các dòng khớp filter theo giá trị cột |
 
-`read_excel_impl` xử lý 2 dạng URL khác nhau:
+Logic resolve/download URL (sharing link + direct URL) và các helper JSON (`build_field_names`, `normalize_cell_value`, `rows_to_records`) nằm chung trong `sharepoint/excel_common.py` — dùng chung cho cả `read_excel.py` và `filter_excel.py`. `fetch_excel_bytes(url, token)` xử lý 2 dạng URL:
 - **Sharing link** (`/:x:/s/...`) — encode thành `shareId` (`u!<base64url>`) và gọi `GET /shares/{shareId}/driveItem`, ưu tiên download qua `@microsoft.graph.downloadUrl` (pre-authenticated, dùng `graph_download_url`), fallback sang `graph_download` với `driveId`/`itemId`.
 - **Direct URL** (`https://tenant.sharepoint.com/sites/.../file.xlsx`) — parse hostname/site path/file path, resolve site ID qua `sites/{hostname}:{site_path}`, rồi lấy driveItem và download qua `graph_download`.
+
+Cả 2 hàm impl đều trả về **JSON** (không phải markdown table).
+
+`read_excel_impl` → object gồm metadata (`site`, `file_name`, `file_path`, `file_size_bytes`, `sheet_names`, `sheet`, `total_rows`, `rows_returned`, `truncated`, `columns`) và mảng `rows` — mỗi phần tử là 1 dòng dữ liệu dạng `{tên_cột: giá_trị}` lấy từ header row của sheet.
+
+`filter_excel_impl` nhận thêm tham số `filters: dict[str, list[str]]` — object dạng `{tên_cột: [giá_trị_1, giá_trị_2, ...]}`. Một dòng khớp khi: với **mọi** cột có trong `filters`, giá trị dòng đó nằm trong danh sách giá trị cho phép của cột (AND giữa các cột, OR giữa các giá trị trong cùng 1 cột). So sánh dạng chuỗi (`str(cell_value)`), không phân biệt kiểu số/text gốc. Nếu 1 tên cột trong `filters` không tồn tại trong header row, trả lỗi kèm danh sách cột hợp lệ — kiểm tra này chạy ngay sau khi đọc header, trước khi quét toàn bộ data rows. Output thêm field `filters`, `total_rows_scanned`, `total_matched` so với `read_excel_impl`; `max_rows` áp dụng trên **số dòng khớp filter**, không phải tổng số dòng trong sheet.
 
 ### mail/folder_utils.py
 

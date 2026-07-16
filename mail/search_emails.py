@@ -5,6 +5,13 @@ from mail.folder_utils import resolve_folder_endpoint
 from utils.formatting import format_email_summary
 
 
+def _to_iso_datetime(date_str: str, end_of_day: bool = False) -> str:
+    """Chuẩn hóa 'YYYY-MM-DD' thành ISO 8601 datetime UTC. Giữ nguyên nếu đã là ISO datetime."""
+    if len(date_str) == 10:
+        return f"{date_str}T{'23:59:59' if end_of_day else '00:00:00'}Z"
+    return date_str
+
+
 async def search_emails_impl(
     query: str = "",
     folder: str = "inbox",
@@ -12,6 +19,8 @@ async def search_emails_impl(
     subject: str = "",
     unread_only: bool = False,
     has_attachments: bool = False,
+    from_date: str = "",
+    to_date: str = "",
     limit: int = 10,
 ) -> str:
     token = ensure_authenticated()
@@ -37,6 +46,10 @@ async def search_emails_impl(
             filters.append("isRead eq false")
         if has_attachments:
             filters.append("hasAttachments eq true")
+        if from_date:
+            filters.append(f"receivedDateTime ge {_to_iso_datetime(from_date)}")
+        if to_date:
+            filters.append(f"receivedDateTime le {_to_iso_datetime(to_date, end_of_day=True)}")
 
         params: dict = {
             "$select": EMAIL_SELECT,

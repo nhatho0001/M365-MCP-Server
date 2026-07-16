@@ -5,9 +5,10 @@ from pathlib import Path
 import openpyxl
 import pypdf
 import docx
+from mcp.server.fastmcp import Image
 
 from auth import ensure_authenticated
-from graph.client import graph_get
+from graph.client import graph_get, graph_download
 from config import ATTACHMENT_LIST_SELECT
 
 
@@ -23,6 +24,21 @@ _TEXT_CONTENT_TYPES = {
 }
 
 _TEXT_EXTENSIONS = {".txt", ".csv", ".json", ".html", ".htm", ".xml", ".md"}
+
+_IMAGE_MIME_TO_FORMAT = {
+    "image/png": "png",
+    "image/jpeg": "jpeg",
+    "image/gif": "gif",
+    "image/webp": "webp",
+}
+
+_IMAGE_EXT_TO_FORMAT = {
+    ".png": "png",
+    ".jpg": "jpeg",
+    ".jpeg": "jpeg",
+    ".gif": "gif",
+    ".webp": "webp",
+}
 
 
 def _format_size(size_bytes: int) -> str:
@@ -138,7 +154,7 @@ async def list_attachments_impl(message_id: str) -> str:
     return "\n\n".join(lines)
 
 
-async def read_attachment_impl(message_id: str, attachment_id: str) -> str:
+async def read_attachment_impl(message_id: str, attachment_id: str) -> list | str:
     token = ensure_authenticated()
 
     att = await graph_get(
@@ -160,10 +176,18 @@ async def read_attachment_impl(message_id: str, attachment_id: str) -> str:
         return f"{header}\nLiên kết đám mây: {web_url}"
 
     content_bytes_b64 = att.get("contentBytes")
-    if not content_bytes_b64:
-        return f"{header}\nKhông có nội dung (contentBytes trống)."
-
-    raw_bytes = base64.b64decode(content_bytes_b64)
+    if content_bytes_b64:
+        raw_bytes = base64.b64decode(content_bytes_b64)
+    else:
+        # Fallback: stream binary qua endpoint /$value
+        # Xảy ra khi ảnh > ~3MB hoặc server email không trả contentBytes inline
+        try:
+            raw_bytes = await graph_download(
+                f"me/messages/{message_id}/attachments/{attachment_id}/$value",
+                token,
+            )
+        except Exception as exc:
+            return f"{header}\nKhông thể tải nội dung file đính kèm: {exc}"
     ext = Path(name).suffix.lower()
     base_mime = content_type.split(";")[0].strip().lower()
 
@@ -188,6 +212,12 @@ async def read_attachment_impl(message_id: str, attachment_id: str) -> str:
 
     # Image
     if base_mime.startswith("image/"):
-        return f"{header}\nKhông thể hiển thị nội dung ảnh dưới dạng văn bản."
+        img_format = _IMAGE_MIME_TO_FORMAT.get(base_mime) or _IMAGE_EXT_TO_FORMAT.get(ext)
+        if img_format:
+            return [header, Image(data=raw_bytes, format=img_format)]
+        return (
+            f"{header}\nĐịnh dạng ảnh '{content_type}' chưa được hỗ trợ hiển thị trực tiếp "
+            "(chỉ hỗ trợ PNG, JPEG, GIF, WEBP)."
+        )
 
     return f"{header}\nĐịnh dạng '{content_type}' chưa được hỗ trợ đọc nội dung trực tiếp."

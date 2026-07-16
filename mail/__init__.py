@@ -49,9 +49,14 @@ def register_mail_tools(mcp: FastMCP) -> None:
         subject: str = "",
         unread_only: bool = False,
         has_attachments: bool = False,
+        from_date: str = "",
+        to_date: str = "",
         limit: int = 10,
     ) -> str:
         """Tìm kiếm email với các điều kiện lọc.
+
+        Lưu ý: from_address, subject, unread_only, has_attachments, from_date, to_date
+        chỉ áp dụng khi 'query' để trống (query dùng $search, các filter còn lại dùng $filter).
 
         Args:
             query: Từ khóa tìm kiếm tự do (KQL). Ưu tiên hơn các filter khác.
@@ -60,10 +65,20 @@ def register_mail_tools(mcp: FastMCP) -> None:
             subject: Lọc theo từ khóa trong tiêu đề.
             unread_only: Chỉ lấy email chưa đọc.
             has_attachments: Chỉ lấy email có đính kèm.
+            from_date: Lọc email nhận từ ngày này trở đi. Định dạng 'YYYY-MM-DD' hoặc ISO 8601 datetime.
+            to_date: Lọc email nhận đến ngày này. Định dạng 'YYYY-MM-DD' hoặc ISO 8601 datetime.
             limit: Số kết quả tối đa (1-50).
         """
         return await search_emails_impl(
-            query, folder, from_address, subject, unread_only, has_attachments, limit
+            query,
+            folder,
+            from_address,
+            subject,
+            unread_only,
+            has_attachments,
+            from_date,
+            to_date,
+            limit,
         )
 
     @mcp.tool()
@@ -177,12 +192,13 @@ def register_mail_tools(mcp: FastMCP) -> None:
         """
         return await list_attachments_impl(message_id)
 
-    @mcp.tool()
-    async def read_attachment(message_id: str, attachment_id: str) -> str:
+    @mcp.tool(structured_output=False)
+    async def read_attachment(message_id: str, attachment_id: str) -> list | str:
         """Đọc và trả về nội dung file đính kèm trong email.
 
         Hỗ trợ: txt, csv, json, html, xml, md (text), xlsx (Excel),
-        pdf (PDF), docx (Word). Ảnh và định dạng khác trả về thông báo.
+        pdf (PDF), docx (Word), png/jpg/gif/webp (ảnh — hiển thị trực tiếp
+        để xem nội dung). Định dạng ảnh khác và định dạng chưa hỗ trợ trả về thông báo.
 
         Args:
             message_id: ID của email chứa file đính kèm.
