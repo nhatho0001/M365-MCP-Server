@@ -199,6 +199,88 @@ async def fetch_excel_bytes(
 
 
 # ---------------------------------------------------------------------------
+# Helpers — Resolve driveItem (không download; dùng cho tool ghi qua Workbook API)
+# ---------------------------------------------------------------------------
+
+
+async def resolve_drive_item(sharepoint_url: str, token: str) -> dict | str:
+    """Resolve SharePoint URL (sharing link hoặc direct URL) → thông tin driveItem.
+
+    Thành công: dict gồm drive_id, item_id, file_name, file_path, site.
+    Thất bại: str thông báo lỗi (tiếng Việt) — caller phân biệt bằng isinstance(str).
+    """
+    if is_sharing_link(sharepoint_url):
+        try:
+            item = await graph_get(
+                f"shares/{_encode_sharing_url(sharepoint_url)}/driveItem",
+                token,
+                params={"$select": "id,name,parentReference"},
+            )
+        except PermissionError as exc:
+            return f"Lỗi quyền truy cập: {exc}"
+        except ValueError as exc:
+            return f"Lỗi khi resolve sharing link: {exc}"
+        except Exception as exc:
+            return f"Lỗi không xác định: {exc}"
+
+        file_name = item.get("name", "unknown")
+        parent_ref = item.get("parentReference", {})
+        parent_path = parent_ref.get("path", "")
+        file_path = file_name
+        if "root:/" in parent_path:
+            rel = parent_path.split("root:/", 1)[1]
+            file_path = f"{rel}/{file_name}" if rel else file_name
+        site = sharepoint_url
+    else:
+        hostname, site_path, file_path = _parse_sharepoint_url(sharepoint_url)
+        if not hostname:
+            return f"Lỗi: Không thể phân tích URL SharePoint: {sharepoint_url}"
+
+        site_api_path = (
+            f"sites/{hostname}:{site_path}" if site_path else f"sites/{hostname}"
+        )
+        try:
+            site_data = await graph_get(site_api_path, token)
+        except ValueError:
+            return (
+                f"Lỗi: Không tìm thấy SharePoint site tại '{hostname}{site_path}'. "
+                "Kiểm tra lại URL hoặc quyền truy cập."
+            )
+        except PermissionError as exc:
+            return f"Lỗi quyền truy cập: {exc}"
+
+        site = site_data.get("webUrl", sharepoint_url)
+        try:
+            item = await graph_get(
+                f"sites/{site_data.get('id', '')}/drive/root:/{file_path}",
+                token,
+                params={"$select": "id,name,parentReference"},
+            )
+        except ValueError:
+            return (
+                f"Lỗi: Không tìm thấy file '{file_path}' trong site. "
+                "Kiểm tra lại đường dẫn file trong URL."
+            )
+        except PermissionError as exc:
+            return f"Lỗi quyền truy cập: {exc}"
+        file_name = item.get("name", file_path.split("/")[-1])
+        parent_ref = item.get("parentReference", {})
+
+    drive_id = parent_ref.get("driveId", "")
+    item_id = item.get("id", "")
+    if not drive_id or not item_id:
+        return "Lỗi: Không lấy được driveId/itemId của file. Kiểm tra quyền truy cập."
+
+    return {
+        "drive_id": drive_id,
+        "item_id": item_id,
+        "file_name": file_name,
+        "file_path": file_path,
+        "site": site,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Helpers — Workbook / sheet
 # ---------------------------------------------------------------------------
 
@@ -272,6 +354,19 @@ def normalize_cell_value(value):
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
     return str(value)
+
+
+def row_matches(record: dict, filters: dict[str, list[str]]) -> bool:
+    """1 row khớp filter khi: với MỌI column trong filters, giá trị cell nằm
+    trong danh sách giá trị cho phép của column đó (AND giữa các column,
+    OR giữa các giá trị trong cùng 1 column). So sánh dạng chuỗi (str)."""
+    for column, allowed_values in filters.items():
+        allowed_strs = {str(v) for v in allowed_values}
+        cell_value = record.get(column)
+        cell_str = "" if cell_value is None else str(cell_value)
+        if cell_str not in allowed_strs:
+            return False
+    return True
 
 
 def rows_to_records(field_names: list[str], data_rows: list[list]) -> list[dict]:

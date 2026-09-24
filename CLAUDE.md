@@ -103,6 +103,10 @@ Không cần thay đổi file nào khác.
 | `read_sharepoint_excel` | `read_excel.py` | Đọc nội dung file Excel (.xlsx/.xlsm/.xlam) từ SharePoint Online |
 | `filter_sharepoint_excel` | `filter_excel.py` | Đọc file Excel từ SharePoint, chỉ trả về các dòng khớp filter theo giá trị cột |
 
+| `update_sharepoint_excel` | `update_excel.py` | Ghi file Excel (.xlsx) qua Graph Workbook API: `set_cells`, `update_rows` (filter → set theo tên cột), `append_rows`. Mặc định `dry_run=True` (chỉ preview) |
+
+`update_excel_impl` không download file: dùng `resolve_drive_item(url, token)` (trong `excel_common.py`) lấy `driveId/itemId`, đọc `workbook/worksheets/{sheet}/usedRange`, tính diff bằng `_plan_changes` (thuần logic), gộp ô liền kề thành range (`_build_blocks`), rồi `createSession` → PATCH `range(address='...')` tuần tự → `closeSession`. Chỉ 1 sheet mỗi lần gọi. Ghi **không atomic** — lỗi giữa chừng để lại các vùng đã ghi (báo trong `ranges_written`). Graph coi `null` trong `values` là "không đổi" nên giá trị rỗng được gửi là `""`.
+
 Logic resolve/download URL (sharing link + direct URL) và các helper JSON (`build_field_names`, `normalize_cell_value`, `rows_to_records`) nằm chung trong `sharepoint/excel_common.py` — dùng chung cho cả `read_excel.py` và `filter_excel.py`. `fetch_excel_bytes(url, token)` xử lý 2 dạng URL:
 - **Sharing link** (`/:x:/s/...`) — encode thành `shareId` (`u!<base64url>`) và gọi `GET /shares/{shareId}/driveItem`, ưu tiên download qua `@microsoft.graph.downloadUrl` (pre-authenticated, dùng `graph_download_url`), fallback sang `graph_download` với `driveId`/`itemId`.
 - **Direct URL** (`https://tenant.sharepoint.com/sites/.../file.xlsx`) — parse hostname/site path/file path, resolve site ID qua `sites/{hostname}:{site_path}`, rồi lấy driveItem và download qua `graph_download`.
@@ -121,7 +125,7 @@ Cả 2 hàm impl đều trả về **JSON** (không phải markdown table).
 
 Dùng **MSAL Device Code Flow** (2 bước): `auth_login` → user xác thực trên browser → `auth_confirm`. Token được cache tại `~/.outlook-mcp-tokens.json`, tự refresh, hiệu lực 90 ngày.
 
-Scopes hiện tại trong `config.py`: `Mail.Read`, `Mail.ReadWrite`, `Mail.Send`, `User.Read`, `Sites.Read.All`, `Files.Read.All`.
+Scopes hiện tại trong `config.py`: `Mail.Read`, `Mail.ReadWrite`, `Mail.Send`, `User.Read`, `Sites.ReadWrite.All`, `Files.ReadWrite.All`.
 
 > Khi thêm scope mới, user phải re-authenticate: `auth_logout()` → `auth_login()` → `auth_confirm()`.
 

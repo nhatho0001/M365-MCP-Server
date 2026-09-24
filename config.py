@@ -15,8 +15,8 @@ SCOPES = [
     "Mail.ReadWrite",
     "Mail.Send",
     "User.Read",
-    "Sites.Read.All",
-    "Files.Read.All",
+    "Sites.ReadWrite.All",
+    "Files.ReadWrite.All",
 ]
 
 EMAIL_SELECT = (

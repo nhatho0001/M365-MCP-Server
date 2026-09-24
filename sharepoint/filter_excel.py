@@ -6,20 +6,8 @@ from sharepoint.excel_common import (
     fetch_excel_bytes,
     normalize_cell_value,
     open_workbook_sheet,
+    row_matches,
 )
-
-
-def _row_matches(record: dict, filters: dict[str, list[str]]) -> bool:
-    """1 row khớp filter khi: với MỌI column trong filters, giá trị cell nằm
-    trong danh sách giá trị cho phép của column đó (AND giữa các column,
-    OR giữa các giá trị trong cùng 1 column). So sánh dạng chuỗi (str)."""
-    for column, allowed_values in filters.items():
-        allowed_strs = {str(v) for v in allowed_values}
-        cell_value = record.get(column)
-        cell_str = "" if cell_value is None else str(cell_value)
-        if cell_str not in allowed_strs:
-            return False
-    return True
 
 
 async def filter_excel_impl(
@@ -70,7 +58,7 @@ async def filter_excel_impl(
             name: normalize_cell_value(row[i] if i < len(row) else None)
             for i, name in enumerate(field_names)
         }
-        if _row_matches(record, filters):
+        if row_matches(record, filters):
             total_matched += 1
             if len(matched_records) < max_rows:
                 matched_records.append(record)

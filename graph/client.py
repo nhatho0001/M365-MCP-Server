@@ -9,11 +9,13 @@ async def graph_request(
     *,
     params: dict | None = None,
     json: dict | None = None,
+    headers: dict | None = None,
 ) -> dict:
     url = f"{GRAPH_BASE}/{path.lstrip('/')}"
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
+        **(headers or {}),
     }
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.request(
@@ -99,16 +101,25 @@ async def graph_download_url(url: str) -> bytes:
     return response.content
 
 
-async def graph_get(path: str, token: str, params: dict | None = None) -> dict:
-    return await graph_request("GET", path, token, params=params)
+async def graph_get(
+    path: str,
+    token: str,
+    params: dict | None = None,
+    headers: dict | None = None,
+) -> dict:
+    return await graph_request("GET", path, token, params=params, headers=headers)
 
 
-async def graph_post(path: str, token: str, body: dict) -> dict:
-    return await graph_request("POST", path, token, json=body)
+async def graph_post(
+    path: str, token: str, body: dict, headers: dict | None = None
+) -> dict:
+    return await graph_request("POST", path, token, json=body, headers=headers)
 
 
-async def graph_patch(path: str, token: str, body: dict) -> dict:
-    return await graph_request("PATCH", path, token, json=body)
+async def graph_patch(
+    path: str, token: str, body: dict, headers: dict | None = None
+) -> dict:
+    return await graph_request("PATCH", path, token, json=body, headers=headers)
 
 
 async def graph_delete(path: str, token: str) -> dict:
