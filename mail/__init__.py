@@ -26,7 +26,9 @@ def register_mail_tools(mcp: FastMCP) -> None:
         """Liệt kê email trong một folder.
 
         Args:
-            folder: Tên folder (inbox, drafts, sent, deleted, junk, archive) hoặc tên tùy chỉnh.
+            folder: Tên folder (inbox, drafts, sent, deleted, junk, archive), tên tùy chỉnh,
+                hoặc đường dẫn folder lồng nhau dạng 'Folder cha/Folder con' (vd. 'Test folder/Test 1').
+                Nếu chỉ truyền tên subfolder, tool tự tìm ở mọi cấp.
             limit: Số lượng email tối đa (1-50).
         """
         return await list_emails_impl(folder, limit)
@@ -60,7 +62,7 @@ def register_mail_tools(mcp: FastMCP) -> None:
 
         Args:
             query: Từ khóa tìm kiếm tự do (KQL). Ưu tiên hơn các filter khác.
-            folder: Folder để tìm kiếm.
+            folder: Folder để tìm kiếm. Hỗ trợ đường dẫn lồng nhau 'Folder cha/Folder con'.
             from_address: Lọc theo địa chỉ email người gửi.
             subject: Lọc theo từ khóa trong tiêu đề.
             unread_only: Chỉ lấy email chưa đọc.

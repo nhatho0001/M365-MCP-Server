@@ -115,7 +115,10 @@ Cả 2 hàm impl đều trả về **JSON** (không phải markdown table).
 
 ### mail/folder_utils.py
 
-`resolve_folder_endpoint(folder, token)` chuyển tên folder thành Graph API path. Các tên well-known: `inbox`, `drafts`, `sent`, `deleted`, `junk`, `archive`, `outbox`. Tên tùy chỉnh được tra cứu qua `$filter=displayName eq '...'`.
+`resolve_folder_endpoint(folder, token)` chuyển tên folder thành Graph API path. Các tên well-known: `inbox`, `drafts`, `sent`, `deleted`, `junk`, `archive`, `outbox`. Thứ tự resolve:
+1. Tách `folder` theo `/` hoặc `\` (bỏ khoảng trắng thừa) → đi từng cấp: cấp đầu là well-known hoặc folder gốc, các cấp sau tra `childFolders` qua `$filter=displayName eq '...'` (vd. `Test folder/Test 1`, `inbox/Project/2024`).
+2. Nếu đường dẫn không khớp → duyệt BFS toàn bộ cây folder (tối đa `MAX_FOLDERS_SCANNED`) tìm folder có tên trùng phần cuối. Nhiều kết quả → raise `ValueError` liệt kê các đường dẫn đầy đủ.
+3. Không tìm thấy → raise `ValueError` (không fallback về inbox).
 
 ### Authentication
 
