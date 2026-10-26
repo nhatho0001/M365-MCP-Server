@@ -44,7 +44,7 @@ async def graph_request(
 async def graph_paginate(
     path: str,
     token: str,
-    params: dict,
+    params: dict | None,
     max_items: int,
 ) -> list[dict]:
     """Fetch nhiều trang kết quả, follow @odata.nextLink tự động."""
@@ -59,7 +59,7 @@ async def graph_paginate(
             data = response.json()
             items.extend(data.get("value", []))
             url = data.get("@odata.nextLink")
-            params = {}  # nextLink đã có sẵn tất cả params
+            params = None  # nextLink đã có sẵn tất cả params; {} sẽ khiến httpx xóa query string
 
     return items[:max_items]
 

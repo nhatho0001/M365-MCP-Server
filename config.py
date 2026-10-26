@@ -30,7 +30,7 @@ EMAIL_DETAIL_SELECT = (
 )
 
 DEFAULT_PAGE_SIZE = 25
-MAX_RESULT_COUNT = 50
+MAX_RESULT_COUNT = 100
 
 # Dùng khi list attachments — bỏ contentBytes để tránh download toàn bộ file
 ATTACHMENT_LIST_SELECT = "id,name,contentType,size,isInline"

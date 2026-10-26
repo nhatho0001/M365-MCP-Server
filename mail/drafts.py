@@ -1,6 +1,6 @@
 from auth import ensure_authenticated
 from graph.client import graph_get, graph_post, graph_patch, graph_delete, graph_paginate
-from config import EMAIL_SELECT
+from config import EMAIL_SELECT, MAX_RESULT_COUNT
 from utils.formatting import format_draft_summary
 
 
@@ -52,7 +52,7 @@ async def create_draft_impl(
 
 async def list_drafts_impl(limit: int = 10) -> str:
     token = ensure_authenticated()
-    limit = max(1, min(limit, 50))
+    limit = max(1, min(limit, MAX_RESULT_COUNT))
     params = {
         "$select": EMAIL_SELECT,
         "$orderby": "lastModifiedDateTime desc",

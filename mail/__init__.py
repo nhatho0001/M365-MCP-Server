@@ -29,7 +29,7 @@ def register_mail_tools(mcp: FastMCP) -> None:
             folder: Tên folder (inbox, drafts, sent, deleted, junk, archive), tên tùy chỉnh,
                 hoặc đường dẫn folder lồng nhau dạng 'Folder cha/Folder con' (vd. 'Test folder/Test 1').
                 Nếu chỉ truyền tên subfolder, tool tự tìm ở mọi cấp.
-            limit: Số lượng email tối đa (1-50).
+            limit: Số lượng email tối đa (1-100).
         """
         return await list_emails_impl(folder, limit)
 
@@ -69,7 +69,7 @@ def register_mail_tools(mcp: FastMCP) -> None:
             has_attachments: Chỉ lấy email có đính kèm.
             from_date: Lọc email nhận từ ngày này trở đi. Định dạng 'YYYY-MM-DD' hoặc ISO 8601 datetime.
             to_date: Lọc email nhận đến ngày này. Định dạng 'YYYY-MM-DD' hoặc ISO 8601 datetime.
-            limit: Số kết quả tối đa (1-50).
+            limit: Số kết quả tối đa (1-100).
         """
         return await search_emails_impl(
             query,
@@ -109,7 +109,7 @@ def register_mail_tools(mcp: FastMCP) -> None:
         """Liệt kê các email nháp trong folder Drafts.
 
         Args:
-            limit: Số lượng nháp tối đa (1-50).
+            limit: Số lượng nháp tối đa (1-100).
         """
         return await list_drafts_impl(limit)
 

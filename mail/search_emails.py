@@ -1,6 +1,6 @@
 from auth import ensure_authenticated
 from graph.client import graph_get, graph_paginate
-from config import EMAIL_SELECT
+from config import EMAIL_SELECT, MAX_RESULT_COUNT
 from mail.folder_utils import resolve_folder_endpoint
 from utils.formatting import format_email_summary
 
@@ -24,7 +24,7 @@ async def search_emails_impl(
     limit: int = 10,
 ) -> str:
     token = ensure_authenticated()
-    limit = max(1, min(limit, 50))
+    limit = max(1, min(limit, MAX_RESULT_COUNT))
     endpoint = await resolve_folder_endpoint(folder, token)
 
     # Ưu tiên $search (KQL) nếu có query text
